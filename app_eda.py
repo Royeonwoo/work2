@@ -231,7 +231,7 @@ class EDA:
                 st.markdown("요약 통계:")
                 st.dataframe(df.describe())
 
-            # 탭 1: 연도별 추이
+           # 탭 1: 연도별 추이
             with tabs[1]:
                 st.subheader("📈 Yearly Population Trend with Prediction")
                 df_national = df[df['지역'] == '전국']
@@ -258,6 +258,17 @@ class EDA:
                 ax.legend()
                 st.pyplot(fig)
 
+                st.markdown("""
+                ### 해설
+
+                이 그래프는 전국의 총인구 변화 추이를 시각화한 것입니다. 
+                실선은 실제 관측된 인구 수를, 점선은 현재 추세를 바탕으로 예측한 미래 인구(2035년)를 나타냅니다.
+
+                - 🔴 빨간 점선은 예측 연도(2035년)를 의미하며, 최근 2년간 평균 순인구 변화량(출생 - 사망)을 기준으로 예측하였습니다.
+                - 📉 전반적인 감소 추세 또는 정체 여부를 시각적으로 파악할 수 있습니다.
+                - 🧮 예측된 인구: {predicted_year}년에는 약 {int(predicted_pop):,}명으로 예상됩니다.
+                """)
+                
             # 탭 2: 지역별 분석
             with tabs[2]:
                 st.subheader("Regional Population Change (Last 5 Years)")
