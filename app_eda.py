@@ -198,14 +198,14 @@ class EDA:
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
 
-            # 전처리 - '세종' 지역 결측치 '-' → 0 치환
+            # 🔧 전처리 시작: '세종' 지역 '-' → 0 치환 및 숫자형 변환
             df.replace("-", 0, inplace=True)
             if '지역' in df.columns:
                 df[df['지역'].str.contains("세종")] = df[df['지역'].str.contains("세종")].replace("-", 0)
 
-            # 숫자형 변환
             for col in ['인구', '출생아수(명)', '사망자수(명)']:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
 
             region_map = {
                 '서울': 'Seoul', '부산': 'Busan', '대구': 'Daegu', '인천': 'Incheon',
@@ -214,7 +214,6 @@ class EDA:
                 '전북': 'Jeonbuk', '전남': 'Jeonnam', '경북': 'Gyeongbuk', '경남': 'Gyeongnam',
                 '제주': 'Jeju'
             }
-
             df['지역영문'] = df['지역'].map(region_map)
 
             tabs = st.tabs([
@@ -332,6 +331,7 @@ class EDA:
 
         else:
             st.info("먼저 population_trends.csv 파일을 업로드해주세요.")
+
 
 
 # ---------------------
