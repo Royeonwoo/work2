@@ -361,6 +361,7 @@ class EDA:
                 ax.set_title("Population Trend by Region (Stacked Area, in Thousands)")
                 ax.set_xlabel("Year")
                 ax.set_ylabel("Population (thousands)")
+                ax.legend(title="Region", loc='center left', bbox_to_anchor=(1.0, 0.5))  # 범례 오른쪽 외부로 이동
                 st.pyplot(fig)
 
                 st.markdown("""
