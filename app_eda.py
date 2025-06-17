@@ -200,9 +200,6 @@ class EDA:
 
             # 🔧 전처리 시작
             df.replace("-", 0, inplace=True)
-            if '지역' in df.columns:
-                df[df['지역'].str.contains("세종")] = df[df['지역'].str.contains("세종")].replace("-", 0)
-
             for col in ['인구', '출생아수(명)', '사망자수(명)']:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -224,7 +221,7 @@ class EDA:
                 "시각화"
             ])
 
-            # 탭 1: 기초 통계
+            # 탭 0: 기초 통계
             with tabs[0]:
                 st.subheader("📄 기초 통계")
                 buffer = io.StringIO()
@@ -234,7 +231,7 @@ class EDA:
                 st.markdown("요약 통계:")
                 st.dataframe(df.describe())
 
-            # 탭 2: 연도별 추이
+            # 탭 1: 연도별 추이
             with tabs[1]:
                 st.subheader("📈 Yearly Population Trend with Prediction")
                 df_national = df[df['지역'] == '전국']
@@ -261,53 +258,82 @@ class EDA:
                 ax.legend()
                 st.pyplot(fig)
 
-            # 탭 3: 지역별 분석
+            # 탭 2: 지역별 분석
             with tabs[2]:
-                st.subheader("📍 Regional Change in Last 5 Years")
-                latest_year = df['연도'].max()
-                df_recent = df[df['연도'].isin([latest_year, latest_year - 5]) & (df['지역'] != '전국')]
-                pivot = df_recent.pivot(index='지역영문', columns='연도', values='인구').dropna()
-                pivot['Change'] = pivot[latest_year] - pivot[latest_year - 5]
-                pivot['Rate'] = (pivot['Change'] / pivot[latest_year - 5]) * 100
-                pivot = pivot.sort_values('Change', ascending=False)
+                st.subheader("Regional Population Change (Last 5 Years)")
+                df_filtered = df[df['지역'] != '전국']
+                latest_year = df_filtered['연도'].max()
+                base_year = latest_year - 5
+                df_latest = df_filtered[df_filtered['연도'] == latest_year]
+                df_base = df_filtered[df_filtered['연도'] == base_year]
+                df_delta = df_latest.set_index('지역영문')['인구'] - df_base.set_index('지역영문')['인구']
+                df_pct = ((df_latest.set_index('지역영문')['인구'] - df_base.set_index('지역영문')['인구']) / df_base.set_index('지역영문')['인구']) * 100
 
                 fig1, ax1 = plt.subplots(figsize=(10, 6))
-                sns.barplot(x='Change', y=pivot.index, data=pivot, ax=ax1, palette='crest')
+                delta_sorted = df_delta.sort_values(ascending=False) / 1000
+                sns.barplot(x=delta_sorted.values, y=delta_sorted.index, ax=ax1)
                 ax1.set_title("Population Change (Last 5 Years)")
-                ax1.set_xlabel("Change (Thousands)")
+                ax1.set_xlabel("Change (thousands)")
                 ax1.set_ylabel("Region")
-                for i, val in enumerate(pivot['Change']):
-                    ax1.text(val, i, f'{int(val):,}', va='center')
+                for i, v in enumerate(delta_sorted.values):
+                    ax1.text(v, i, f"{v:.1f}", va='center')
                 st.pyplot(fig1)
 
                 fig2, ax2 = plt.subplots(figsize=(10, 6))
-                sns.barplot(x='Rate', y=pivot.index, data=pivot, ax=ax2, palette='flare')
-                ax2.set_title("Population Growth Rate (%)")
-                ax2.set_xlabel("Rate of Change (%)")
+                pct_sorted = df_pct.sort_values(ascending=False)
+                sns.barplot(x=pct_sorted.values, y=pct_sorted.index, ax=ax2)
+                ax2.set_title("Rate of Change (%)")
+                ax2.set_xlabel("Percent Change")
                 ax2.set_ylabel("Region")
-                for i, val in enumerate(pivot['Rate']):
-                    ax2.text(val, i, f'{val:.1f}%', va='center')
+                for i, v in enumerate(pct_sorted.values):
+                    ax2.text(v, i, f"{v:.1f}%", va='center')
                 st.pyplot(fig2)
 
                 st.markdown("""
-                위 그래프는 최근 5년간 각 지역의 인구 변화량과 변화율을 보여줍니다.
-                수치가 높을수록 인구가 빠르게 증가한 지역을 의미합니다.
+                ### 해설
+
+                첫 번째 그래프는 최근 5년 동안 각 지역의 인구 변화량을 천 명 단위로 나타냅니다. 오른쪽으로 길수록 인구가 많이 증가했음을, 왼쪽이나 짧을수록 증가가 적거나 감소했음을 나타냅니다.
+
+                두 번째 그래프는 변화율을 보여주며, 인구 규모와 관계없이 각 지역의 상대적 성장률을 비교할 수 있게 합니다.
                 """)
 
-            # 탭 4: 변화량 분석
+            # 탭 3: 변화량 분석
             with tabs[3]:
-                st.subheader("📌 Top 100 Changes by Year and Region")
+                st.subheader("📈 Top 100 Population Changes (Diff)")
                 df_diff = df[df['지역'] != '전국'].copy()
-                df_diff.sort_values(['지역', '연도'], inplace=True)
-                df_diff['증감'] = df_diff.groupby('지역')['인구'].diff()
-                top100 = df_diff[['연도', '지역영문', '증감']].dropna().sort_values('증감', ascending=False).head(100)
-                top100['증감(콤마)'] = top100['증감'].apply(lambda x: f"{int(x):,}")
+                df_diff.sort_values(by=['지역영문', '연도'], inplace=True)
+                df_diff['증감'] = df_diff.groupby('지역영문')['인구'].diff()
 
-                def highlight(val):
-                    color = 'background-color: lightblue' if val > 0 else 'background-color: lightcoral'
-                    return color
+                top100 = df_diff[['지역영문', '연도', '증감']].dropna().copy()
+                top100['증감'] = top100['증감'].astype(int)
+                top100 = top100.reindex(top100['증감'].abs().sort_values(ascending=False).index).head(100)
 
-                st.dataframe(top100.style.applymap(highlight, subset=['증감']).format({'증감': "{:,}"}))
+                def colorbar(val):
+                    if val > 0:
+                        ratio = min(1.0, val / top100['증감'].max())
+                        return f'background-color: rgba(0, 100, 255, {ratio})'
+                    elif val < 0:
+                        ratio = min(1.0, abs(val) / abs(top100['증감'].min()))
+                        return f'background-color: rgba(255, 80, 80, {ratio})'
+                    return ''
+
+                styled = top100.style \
+                    .format({'증감': '{:,}'}) \
+                    .applymap(colorbar, subset=['증감']) \
+                    .set_properties(**{'text-align': 'center'}) \
+                    .set_table_styles([{'selector': 'th', 'props': [('text-align', 'center')]}])
+
+                st.markdown("### 🔍 Top 100 Absolute Population Changes (Positive & Negative Combined)")
+                st.write(styled)
+
+                st.markdown("""
+                ### 해설
+
+                이 표는 전국을 제외한 각 지역의 연도별 인구 변화량 중 가장 큰 100건을 나열한 것입니다. 
+                - 파란색 셀은 인구 증가를, 붉은색 셀은 인구 감소를 나타냅니다.
+                - 색이 진할수록 변화량이 크다는 의미입니다.
+                - 증감 수치는 천 단위 콤마로 표기되어 가독성을 높였습니다.
+                """)
 
             # 탭 5: 시각화
             with tabs[4]:
