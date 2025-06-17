@@ -198,9 +198,10 @@ class EDA:
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
 
-            # 전처리 - 세종지역 결측치 '-' → 0 치환
+            # 전처리 - '세종' 지역 결측치 '-' → 0 치환
             df.replace("-", 0, inplace=True)
-            df[df['행정구역'].str.contains("세종")] = df[df['행정구역'].str.contains("세종")].replace("-", 0)
+            if '지역' in df.columns:
+                df[df['지역'].str.contains("세종")] = df[df['지역'].str.contains("세종")].replace("-", 0)
 
             # 숫자형 변환
             for col in ['인구', '출생아수(명)', '사망자수(명)']:
