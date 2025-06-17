@@ -220,11 +220,13 @@ class EDA:
                 "시각화"
             ])
 
-            # 탭 0: 기초 통계
+             # 탭 0: 기초 통계
             with tabs[0]:
                 st.subheader("📄 기초 통계")
                 buffer = io.StringIO()
                 df.info(buf=buffer)
+                st.write(f"총 행 개수: {len(df):,}")
+                st.write(f"중복 행 개수: {df.duplicated().sum():,}")
                 st.text("데이터 구조:")
                 st.code(buffer.getvalue())
                 st.markdown("요약 통계:")
@@ -232,7 +234,7 @@ class EDA:
 
                 st.markdown("""
                 ### 해설
-                - 이 탭에서는 전체 데이터의 구조와 요약 통계를 확인할 수 있습니다.
+                - 이 탭에서는 전체 데이터의 구조, 결측치, 중복 여부 및 요약 통계를 확인할 수 있습니다.
                 - 각 열의 데이터 타입, 결측치 여부, 기본적인 기술통계를 파악하여 전처리 필요성을 검토할 수 있습니다.
                 """)
 
