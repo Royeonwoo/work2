@@ -198,7 +198,6 @@ class EDA:
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
 
-            # 🔧 전처리 시작
             df.replace("-", 0, inplace=True)
             for col in ['인구', '출생아수(명)', '사망자수(명)']:
                 if col in df.columns:
@@ -231,7 +230,13 @@ class EDA:
                 st.markdown("요약 통계:")
                 st.dataframe(df.describe())
 
-           # 탭 1: 연도별 추이
+                st.markdown("""
+                ### 해설
+                - 이 탭에서는 전체 데이터의 구조와 요약 통계를 확인할 수 있습니다.
+                - 각 열의 데이터 타입, 결측치 여부, 기본적인 기술통계를 파악하여 전처리 필요성을 검토할 수 있습니다.
+                """)
+
+            # 탭 1: 연도별 추이
             with tabs[1]:
                 st.subheader("📈 Yearly Population Trend with Prediction")
                 df_national = df[df['지역'] == '전국']
@@ -258,20 +263,16 @@ class EDA:
                 ax.legend()
                 st.pyplot(fig)
 
-                st.markdown("""
+                st.markdown(f"""
                 ### 해설
-
-                이 그래프는 전국의 총인구 변화 추이를 시각화한 것입니다. 
-                실선은 실제 관측된 인구 수를, 점선은 현재 추세를 바탕으로 예측한 미래 인구(2035년)를 나타냅니다.
-
-                - 🔴 빨간 점선은 예측 연도(2035년)를 의미하며, 최근 2년간 평균 순인구 변화량(출생 - 사망)을 기준으로 예측하였습니다.
-                - 📉 전반적인 감소 추세 또는 정체 여부를 시각적으로 파악할 수 있습니다.
-                - 🧮 예측된 인구: {predicted_year}년에는 약 {int(predicted_pop):,}명으로 예상됩니다.
+                - 전국 인구의 연도별 추이를 시각화한 그래프입니다.
+                - {predicted_year}년에는 약 {int(predicted_pop):,}명으로 예측되며, 최근 2년간의 순변화량을 기반으로 선형 예측을 수행했습니다.
+                - 전국 인구는 특정 시점 이후 감소세에 접어든 것으로 보이며, 인구 감소 문제의 심각성을 파악할 수 있습니다.
                 """)
-                
+
             # 탭 2: 지역별 분석
             with tabs[2]:
-                st.subheader("Regional Population Change (Last 5 Years)")
+                st.subheader("📌 지역별 인구 변화 (최근 5년)")
                 df_filtered = df[df['지역'] != '전국']
                 latest_year = df_filtered['연도'].max()
                 base_year = latest_year - 5
@@ -282,7 +283,7 @@ class EDA:
 
                 fig1, ax1 = plt.subplots(figsize=(10, 6))
                 delta_sorted = df_delta.sort_values(ascending=False) / 1000
-                sns.barplot(x=delta_sorted.values, y=delta_sorted.index, ax=ax1)
+                sns.barplot(x=delta_sorted.values, y=delta_sorted.index, ax=ax1, palette='Blues_r')
                 ax1.set_title("Population Change (Last 5 Years)")
                 ax1.set_xlabel("Change (thousands)")
                 ax1.set_ylabel("Region")
@@ -292,7 +293,7 @@ class EDA:
 
                 fig2, ax2 = plt.subplots(figsize=(10, 6))
                 pct_sorted = df_pct.sort_values(ascending=False)
-                sns.barplot(x=pct_sorted.values, y=pct_sorted.index, ax=ax2)
+                sns.barplot(x=pct_sorted.values, y=pct_sorted.index, ax=ax2, palette='coolwarm')
                 ax2.set_title("Rate of Change (%)")
                 ax2.set_xlabel("Percent Change")
                 ax2.set_ylabel("Region")
@@ -300,21 +301,23 @@ class EDA:
                     ax2.text(v, i, f"{v:.1f}%", va='center')
                 st.pyplot(fig2)
 
-                st.markdown("""
+                top_region = delta_sorted.idxmax()
+                top_rate = pct_sorted.idxmax()
+
+                st.markdown(f"""
                 ### 해설
-
-                첫 번째 그래프는 최근 5년 동안 각 지역의 인구 변화량을 천 명 단위로 나타냅니다. 오른쪽으로 길수록 인구가 많이 증가했음을, 왼쪽이나 짧을수록 증가가 적거나 감소했음을 나타냅니다.
-
-                두 번째 그래프는 변화율을 보여주며, 인구 규모와 관계없이 각 지역의 상대적 성장률을 비교할 수 있게 합니다.
+                - 최근 5년간 인구가 가장 많이 증가한 지역은 **{top_region}**이며,
+                  비율상 가장 큰 증가를 보인 지역은 **{top_rate}**입니다.
+                - 첫 번째 그래프는 절대 인구 증감량을, 두 번째 그래프는 비율 기준 증감을 보여줍니다.
+                - 수도권 일부 지역은 증가세를, 지방 중 일부는 뚜렷한 감소세를 보입니다.
                 """)
 
             # 탭 3: 변화량 분석
             with tabs[3]:
-                st.subheader("📈 Top 100 Population Changes (Diff)")
+                st.subheader("📌 연도별 인구 증감 Top 100")
                 df_diff = df[df['지역'] != '전국'].copy()
                 df_diff.sort_values(by=['지역영문', '연도'], inplace=True)
                 df_diff['증감'] = df_diff.groupby('지역영문')['인구'].diff()
-
                 top100 = df_diff[['지역영문', '연도', '증감']].dropna().copy()
                 top100['증감'] = top100['증감'].astype(int)
                 top100 = top100.reindex(top100['증감'].abs().sort_values(ascending=False).index).head(100)
@@ -339,25 +342,31 @@ class EDA:
 
                 st.markdown("""
                 ### 해설
-
-                이 표는 전국을 제외한 각 지역의 연도별 인구 변화량 중 가장 큰 100건을 나열한 것입니다. 
-                - 파란색 셀은 인구 증가를, 붉은색 셀은 인구 감소를 나타냅니다.
-                - 색이 진할수록 변화량이 크다는 의미입니다.
-                - 증감 수치는 천 단위 콤마로 표기되어 가독성을 높였습니다.
+                - 연도별 인구 증감이 큰 사례를 추출한 표로, 특정 연도의 급격한 변화 현상을 분석할 수 있습니다.
+                - 파란 배경은 증가, 빨간 배경은 감소를 의미합니다.
+                - 강원, 경북, 전남 지역에서 대규모 감소가 다수 포착되었으며, 수도권 일부는 반대로 대규모 유입을 보였습니다.
                 """)
 
-            # 탭 5: 시각화
+            # 탭 4: 시각화
             with tabs[4]:
-                st.subheader("🗺️ Stacked Area Chart by Region")
-                pivot_area = df[df['지역'] != '전국'].pivot(index='연도', columns='지역영문', values='인구').fillna(0)
-                pivot_area = pivot_area / 1000
+                st.subheader("📊 누적 영역 시각화")
+                df_filtered = df[df['지역'] != '전국']
+                df_pivot = df_filtered.pivot_table(index='연도', columns='지역영문', values='인구', aggfunc='sum')
+                df_pivot = df_pivot.fillna(0)
+
                 fig, ax = plt.subplots(figsize=(12, 6))
-                pivot_area.plot.area(ax=ax, colormap='tab20')
-                ax.set_title("Population Trends by Region (in Thousands)")
+                df_pivot.div(1000).plot.area(ax=ax)
+                ax.set_title("Population Trend by Region (Stacked Area, in Thousands)")
                 ax.set_xlabel("Year")
-                ax.set_ylabel("Population (Thousands)")
-                ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+                ax.set_ylabel("Population (thousands)")
                 st.pyplot(fig)
+
+                st.markdown("""
+                ### 해설
+                - 이 그래프는 전국을 제외한 지역들의 인구를 연도별로 누적하여 표현합니다.
+                - 면적이 넓을수록 인구 규모가 크며, 지역 간 상대적 비중 변화를 시각적으로 비교할 수 있습니다.
+                - 수도권 지역의 누적 면적은 시간이 지남에 따라 꾸준히 확대되는 경향을 보입니다.
+                """)
 
         else:
             st.info("먼저 population_trends.csv 파일을 업로드해주세요.")
